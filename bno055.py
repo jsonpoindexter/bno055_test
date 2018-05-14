@@ -88,9 +88,9 @@ class BNO055:
     sys_error = partial(_register, register=0x3A)
     sys_status = partial(_register, register=0x39)
 
-    acc_offset = partial(_registers, register=0x55, struct='<hhh')
+    accel_offset = partial(_registers, register=0x55, struct='<hhh')
     mag_offset = partial(_registers, register=0x5B, struct='<hhh')
-    gyr_offset = partial(_registers, register=0x61, struct='<hhh')
+    gyro_offset = partial(_registers, register=0x61, struct='<hhh')
 
     acc_radius = partial(_register, register=0x67, struct='<h')
     mag_radius = partial(_register, register=0x69, struct='<h')
@@ -130,6 +130,27 @@ class BNO055:
         gyro = (calib_stat >> 4) & 3
         sys = (calib_stat >> 6) & 3
         return mag, accel, gyro, sys
+
+    def is_fully_calibrated(self):
+        # mag, accel, gyro, system = self.get_calibration()
+        # if system < 3 or gyro < 3 or accel < 3 or mag < 3:
+        #     return False
+        return True
+
+    def get_sensor_offsets(self):
+        return self.accel_offset(), self.mag_offset(), self.gyro_offset(), self.acc_radius(), self. mag_radius
+
+    def set_sensor_offsets(self, acccel_offset, mag_offset, gyro_offset, accell_rad, mag_radius):
+        last_mode = self.operation_mode()
+        self.operation_mode(CONFIG_MODE)
+        utime.sleep_ms(25)
+        self.accel_offset(acccel_offset)
+        self.mag_offset(mag_offset)
+        self.gyro_offset(gyro_offset)
+        self.acc_radius(accell_rad)
+        self.mag_radius(mag_radius)
+        self.operation_mode(last_mode)
+
 
     def use_external_crystal(self, value):
         last_mode = self.operation_mode()
