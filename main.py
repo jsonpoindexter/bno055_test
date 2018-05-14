@@ -1,20 +1,16 @@
-import time, math, bno055, ustruct, os, machine
+import time, math, bno055, os, machine
+from ustruct import pack, unpack
 from machine import I2C, Pin
 
-try:
-    os.remove('bno055_config.dat')
-except:
-    pass
-
+# try:
+#     os.remove('bno055_config.dat')
+# except:
+#     pass
+#
 BNO055_SAMPLERATE_DELAY_MS = .1
 
-print("Starting main.py")
-time.sleep(1)
-
-#led = Pin(2, Pin.OUT)
-
 i2c = I2C(-1, Pin(5), Pin(4), freq=400000, timeout=10000)
-# i2c.scan()
+
 
 print("Starting I2C scan")
 
@@ -25,7 +21,6 @@ while True:
         break
 
 sensor = bno055.BNO055(i2c, address=41)
-sensor.use_external_crystal(True)
 sensor.operation_mode(bno055.NDOF_MODE)
 
 def display_sensor_offset():
@@ -38,6 +33,13 @@ def display_cal_status():
     mag_status, accel_status, gyro_status, sys_status = sensor.get_calibration()
     print("mag_status=%d accel_status=%d gyro_status=%d sys_status=%d" % (mag_status, accel_status, gyro_status, sys_status))
 
+def display_sensor_status():
+    st_result = sensor.st_result()
+    sys_error = sensor.sys_error()
+    sys_status = sensor.sys_status()
+    print("result=%d err=%d status=%d" % (st_result, sys_error, sys_status))
+
+
 # Configure mode
 found_calib = False
 try:
@@ -45,9 +47,9 @@ try:
     accel_offset_x, accel_offset_y, accel_offset_z, mag_offset_x, mag_offset_y, mag_offset_z, gyro_offset_x, gyro_offset_y, gyro_offset_z, acc_radius, mag_radius = unpack('hhhhhhhhhhh', file.read())
     print("Previous BNO055 calibration data found.")
     sensor.set_sensor_offsets(
-        pack('hhh', accel_offset_x, accel_offset_y, accel_offset_z),
-        pack('hhh', mag_offset_x, mag_offset_y, mag_offset_z),
-        pack('hhh', gyro_offset_x, gyro_offset_y, gyro_offset_z),
+        pack('<hhh', accel_offset_x, accel_offset_y, accel_offset_z),
+        pack('<hhh', mag_offset_x, mag_offset_y, mag_offset_z),
+        pack('<hhh', gyro_offset_x, gyro_offset_y, gyro_offset_z),
         acc_radius,
         mag_radius
     )
@@ -62,22 +64,30 @@ else:
     print("Please calibrate sensor:")
 
 display_cal_status()
-display_sensor_offset()
+# display_sensor_offset()
 
 while not sensor.is_fully_calibrated():
-    #display_cal_status()
+    display_cal_status()
     time.sleep(BNO055_SAMPLERATE_DELAY_MS)
-
+display_cal_status()
 print("Fully calibrated!")
 print("--------------------------------")
+
 print("Calibration Results: ")
-accel_offset, mag_offset, gyro_offset, acc_radius, mag_radius = sensor.get_sensor_offsets()
-sensor.set_sensor_offsets(accel_offset, mag_offset, gyro_offset, acc_radius, mag_radius)
-display_sensor_offset()
 print("Storing calibration data")
-accel_offset_x, accel_offset_y, accel_offset_z = unpack('hhh', accel_offset)
-mag_offset_x, mag_offset_y, mag_offset_z = unpack('hhh', mag_offset)
-gyro_offset_x, gyro_offset_y, gyro_offset_z = unpack('hhh', gyro_offset)
+display_sensor_status()
+accel_offset, mag_offset, gyro_offset, acc_radius, mag_radius = sensor.get_sensor_offsets()
+display_sensor_status()
+acc = "x=%d y=%d z=%d" % accel_offset
+mag = "x=%d y=%d z=%d" % mag_offset
+gyr = "x=%d y=%d z=%d" % gyro_offset
+print("cal acc=(%s) mag=(%s) gyr=(%s) acc_r=%d mag_r=%d" % (acc, mag, gyr, acc_radius, mag_radius))
+sensor.set_sensor_offsets(accel_offset, mag_offset, gyro_offset, acc_radius, mag_radius)
+display_sensor_status()
+accel_offset_x, accel_offset_y, accel_offset_z = accel_offset
+mag_offset_x, mag_offset_y, mag_offset_z = mag_offset
+gyro_offset_x, gyro_offset_y, gyro_offset_z = gyro_offset
+
 new_calib = pack('hhhhhhhhhhh',
      accel_offset_x,
      accel_offset_y,
@@ -93,6 +103,9 @@ new_calib = pack('hhhhhhhhhhh',
 file = open('bno055_config.dat', 'wb')
 file.write(new_calib)
 file.close()
+
+
+sensor.use_external_crystal(True) #Crystal must be configured AFTER loading calibration data into BNO055.
 
 # Main code
 while True:

@@ -132,21 +132,29 @@ class BNO055:
         return mag, accel, gyro, sys
 
     def is_fully_calibrated(self):
-        # mag, accel, gyro, system = self.get_calibration()
-        # if system < 3 or gyro < 3 or accel < 3 or mag < 3:
-        #     return False
+        mag, accel, gyro, system = self.get_calibration()
+        if system < 3 or gyro < 3 or accel < 3 or mag < 3:
+            return False
         return True
 
     def get_sensor_offsets(self):
-        return self.accel_offset(), self.mag_offset(), self.gyro_offset(), self.acc_radius(), self. mag_radius
+        last_mode = self.operation_mode()
+        self.operation_mode(CONFIG_MODE)
+        accel_offset= self.accel_offset()
+        mag_offset = self.mag_offset()
+        gyro_offset = self.gyro_offset()
+        acc_radius = self.acc_radius()
+        mag_radius = self.mag_radius()
+        self.operation_mode(last_mode)
+        return accel_offset, mag_offset, gyro_offset, acc_radius, mag_radius
 
-    def set_sensor_offsets(self, acccel_offset, mag_offset, gyro_offset, accell_rad, mag_radius):
+    def set_sensor_offsets(self, accel_offset, mag_offset, gyro_offset, accell_rad, mag_radius):
         last_mode = self.operation_mode()
         self.operation_mode(CONFIG_MODE)
         utime.sleep_ms(25)
-        self.accel_offset(acccel_offset)
-        self.mag_offset(mag_offset)
-        self.gyro_offset(gyro_offset)
+        self.accel_offset(value=accel_offset)
+        self.mag_offset(value=mag_offset)
+        self.gyro_offset(value=gyro_offset)
         self.acc_radius(accell_rad)
         self.mag_radius(mag_radius)
         self.operation_mode(last_mode)
